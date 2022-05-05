@@ -11,4 +11,4 @@ It is very inspired by [atlantis](https://github.com/runatlantis/atlantis). The 
 
 # AWS Infrastructure
 
-A series of AWS resources for deploying **injeolmi** can be build with terraform in `infrastructure`.
+A series of AWS resources for deploying **injeolmi** can be build with terraform in `/infra`.
