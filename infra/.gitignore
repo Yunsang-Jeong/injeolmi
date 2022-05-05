@@ -1,0 +1,30 @@
+# General
+**/.DS_Store
+**/.vscode/
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfstate.lock.info
+**/*.tfstate.*
+
+# lock file
+**/.terraform.lock.hcl
+
+# log files
+**/crash.log
+
+# Credential
+**/*.tfvars
+**/*.pem
+**/*.bak
+**/*.plan
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
