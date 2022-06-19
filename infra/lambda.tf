@@ -11,10 +11,11 @@ resource "aws_lambda_function" "this" {
   handler = "main"
 
   # Source code
-  filename         = "app.zip"
+  filename         = "../bin/injeolmi.zip"
   package_type     = "Zip"
   publish          = true
-  source_code_hash = filebase64sha256("app.zip")
+  source_code_hash = data.archive_file.zip.output_base64sha256
+  # filebase64sha256("../bin/injeolmi.zip")
 
   environment {
     variables = {
@@ -55,3 +56,22 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
   policy = data.aws_iam_policy_document.cloudwatch_policy.json
 }
 ################################################################################
+
+resource "null_resource" "makefile" {
+  triggers = {
+    always_run = timestamp()
+  }
+  provisioner "local-exec" {
+    command = "make -f ../Makefile build"
+  }
+}
+
+data "archive_file" "zip" {   
+  type        = "zip"
+  source_dir  = "../bin/"
+  output_path = "../bin/injeolmi.zip"
+
+  depends_on = [
+    null_resource.makefile
+  ]
+}
