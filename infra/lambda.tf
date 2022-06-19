@@ -66,7 +66,7 @@ resource "null_resource" "makefile" {
   }
 }
 
-data "archive_file" "zip" {   
+data "archive_file" "zip" {
   type        = "zip"
   source_dir  = "../bin/"
   output_path = "../bin/injeolmi.zip"
