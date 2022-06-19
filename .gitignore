@@ -13,10 +13,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
-<<<<<<< Updated upstream
-=======
 
 .DS_Store
 
 bin/
->>>>>>> Stashed changes
