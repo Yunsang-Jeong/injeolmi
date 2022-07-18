@@ -3,7 +3,10 @@ package app
 import (
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	errors "github.com/pkg/errors"
 	"github.com/xanzy/go-gitlab"
 )
@@ -14,78 +17,106 @@ const (
 )
 
 func (i *Injeolmi) handleWebhook() error {
-	switch body := i.gitlabWebhookBody.(type) {
+	switch e := i.gitlabWebhookBody.(type) {
 	case gitlab.MergeCommentEvent:
-		if err := i.parseUserActionFromMRComment(body.ObjectAttributes.Note); err != nil {
+		if err := i.parseUserActionFromMRComment(e.ObjectAttributes.Note); err != nil {
 			return err
 		}
 
 		switch i.userActionType {
+		case responseKeyword:
+			return nil
+
 		case "start":
-			i.handleStartAction(body.ProjectID, body.MergeRequest.SourceBranch, body.MergeRequest.IID)
+			if err := i.handleStartAction(e); err != nil {
+				return errors.Wrap(err, "fail to handle webhook in start")
+			}
 
 		case "help":
-			i.handleHelpAction(body.ProjectID, body.MergeRequest.IID)
+			if err := i.handleHelpAction(e); err != nil {
+				return errors.Wrap(err, "fail to handle webhook in help")
+			}
 		}
 
 	case gitlab.PipelineEvent:
-		i.handlePipelineEvent()
+		if err := i.handlePipelineEvent(e); err != nil {
+			return errors.Wrap(err, "fail to handle webhook in pipelineevent")
+		}
 
 	case gitlab.JobStats:
-		i.handleJobEvent()
+		if err := i.handleJobEvent(e); err != nil {
+			return errors.Wrap(err, "fail to handle webhook in jobstats")
+		}
 
 	default:
-		log.Printf("%T event is not supported", body)
+		log.Printf("%T event is not supported", e)
 	}
 
 	return nil
 }
 
-func (i *Injeolmi) handleStartAction(projectId int, sourceBranch string, mergeRequestIID int) error {
+func (i *Injeolmi) handleStartAction(e gitlab.MergeCommentEvent) error {
 	if i.userActionOptions == nil {
 		return errors.New("`start` action must have action options")
 	}
 
-	variables := &[]*gitlab.PipelineVariable{
+	//
+	// Run pipeline
+	//
+	pipelineVariables := &[]*gitlab.PipelineVariable{
 		{
-			Key:          "DIR",
+			Key:          "CHDIR",
 			Value:        i.userActionOptions[0],
 			VariableType: "env_var",
 		},
 	}
-
-	if err := i.runBranchPipeline(projectId, sourceBranch, variables); err != nil {
-		return errors.Wrap(err, "fail to handle webhook in start")
+	log.Println(i.userActionOptions[0])
+	pipeline, err := i.runBranchPipeline(e.ProjectID, e.MergeRequest.SourceBranch, pipelineVariables)
+	if err != nil {
+		return errors.Wrap(err, "fail to run pipeline")
 	}
 
-	pipeline := i.gitlabClientResponse["pipeline"].(*gitlab.Pipeline)
-	// pipeline.ID
-
-	if err := i.writeComment(projectId, mergeRequestIID, fmt.Sprintf(fmtPipelineSuccessString, pipeline.WebURL)); err != nil {
-		return errors.Wrap(err, "fail to handle webhook")
+	//
+	// Write comment on mr
+	//
+	commentString := fmt.Sprintf(fmtPipelineSuccessString, pipeline.WebURL)
+	note, err := i.writeComment(e.ProjectID, e.MergeRequest.IID, commentString)
+	if err != nil {
+		return errors.Wrap(err, "fail to write comment")
 	}
 
-	// item := dynamodb_table_attributes{
-	// 	CommentID: body.ObjectAttributes.ID,
-	// 	MRID: body.MergeRequest.ID,
-	// 	MRIID: body.MergeRequest.IID,
-	// 	PipelineID:
-	// 	ActionType: h.ActionType,
-	// 	ActionOptions: h.AcActionOptions,
-	// }
+	//
+	// Save data to AWS DynamoDB
+	//
+	item := dynamodb_table_schema{
+		"ProjectID":        &types.AttributeValueMemberN{Value: strconv.Itoa(e.ProjectID)},
+		"CommentID":        &types.AttributeValueMemberN{Value: strconv.Itoa(note.ID)},
+		"MergeRequestsID":  &types.AttributeValueMemberN{Value: strconv.Itoa(e.MergeRequest.ID)},
+		"MergeRequestsIID": &types.AttributeValueMemberN{Value: strconv.Itoa(e.MergeRequest.IID)},
+		"PipelineID":       &types.AttributeValueMemberN{Value: strconv.Itoa(pipeline.ID)},
+		"ActionType":       &types.AttributeValueMemberS{Value: "start"},
+		"ActionOptions":    &types.AttributeValueMemberS{Value: strings.Join(i.userActionOptions, ", ")},
+	}
+	if err := i.PutItemToAWSDynamoDB(item); err != nil {
+		return errors.Wrap(err, "fail to put item to AWS DynamoDB")
+	}
 
 	return nil
 }
 
-func (i *Injeolmi) handleHelpAction(projectId int, mergeRequestIID int) error {
-	if err := i.writeComment(projectId, mergeRequestIID, helpString); err != nil {
+func (i *Injeolmi) handleHelpAction(e gitlab.MergeCommentEvent) error {
+	//
+	// Write comment on mr
+	//
+	_, err := i.writeComment(e.ProjectID, e.MergeRequest.IID, helpString)
+	if err != nil {
 		return errors.Wrap(err, "fail to handle webhook")
 	}
 
 	return nil
 }
 
-func (i *Injeolmi) handlePipelineEvent() error {
+func (i *Injeolmi) handlePipelineEvent(e gitlab.PipelineEvent) error {
 	//
 	// handle PipelineEvent
 	//
@@ -101,7 +132,7 @@ func (i *Injeolmi) handlePipelineEvent() error {
 	return nil
 }
 
-func (i *Injeolmi) handleJobEvent() error {
+func (i *Injeolmi) handleJobEvent(e gitlab.JobStats) error {
 	//
 	// handle PipelineEvent
 	//

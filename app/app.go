@@ -10,23 +10,24 @@ import (
 )
 
 type Injeolmi struct {
-	gitlabWebhookEvent   string
-	gitlabWebhookSecret  string
-	gitlabToken          string
-	gitlabClient         *gitlab.Client
-	gitlabClientResponse map[string]interface{}
-	gitlabWebhookBody    interface{}
-	userActionType       string
-	userActionOptions    []string
-	awsClientConfig      *aws.Config
+	gitlabWebhookEvent  string
+	gitlabWebhookSecret string
+	gitlabToken         string
+	gitlabClient        *gitlab.Client
+	gitlabWebhookBody   interface{}
+	userActionType      string
+	userActionOptions   []string
+	awsClientConfig     *aws.Config
 }
 
 const (
 	webhookSecretHeader = "X-Gitlab-Token"
 	webhookEventHeader  = "X-Gitlab-Event"
 	triggerKeyword      = "injeolmi"
+	responseKeyword     = "[Injeolmi]"
 	webhookSecretEnvKey = "GITLAB_WEBHOOK_SECRET"
 	gitlabTokenEnvKey   = "GITLAB_TOKEN"
+	dynamodbTableName   = "ingeolmi-dynamodb"
 )
 
 const (
@@ -69,7 +70,7 @@ func Run(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, err
 		return generateReturn(err.Error(), 400)
 	}
 
-	// [5] Handle webhook
+	// Handle webhook
 	if err := injeolmi.handleWebhook(); err != nil {
 		return generateReturn(err.Error(), 400)
 	}

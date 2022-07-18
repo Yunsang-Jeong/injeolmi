@@ -11,15 +11,6 @@ const (
 	awsClientRegion = "ap-northeast-2"
 )
 
-type dynamodb_table_attributes struct {
-	CommentID     int
-	MRID          int
-	MRIID         int
-	PipelineID    int
-	ActionType    string
-	ActionOptions string
-}
-
 func (i *Injeolmi) setAWSClient() error {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(awsClientRegion))
 	if err != nil {

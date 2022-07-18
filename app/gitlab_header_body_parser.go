@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -14,7 +15,7 @@ func (i *Injeolmi) getGitlabWebookEventAndValidate(headers map[string]string, al
 	if event, exist := headers[webhookEventHeader]; exist {
 		i.gitlabWebhookEvent = event
 	} else {
-		return errors.New("can't parse event from webhook")
+		return errors.New(fmt.Sprintf("can't parse %s from webhook", webhookEventHeader))
 	}
 
 	// Validate event
@@ -42,7 +43,7 @@ func (i *Injeolmi) getGitlabWebookSecretAndValidate(headers map[string]string) e
 	}
 
 	// Validate webhook secret
-	if i.gitlabWebhookSecret == gitlabWebhookSecretFromEnv {
+	if i.gitlabWebhookSecret != gitlabWebhookSecretFromEnv {
 		return errors.New("fail to validate gitlab webhook secret")
 	}
 
@@ -71,6 +72,7 @@ func (i *Injeolmi) getGitlabWebhookBodyAndValidate(body string) error {
 				return errors.Wrap(err, "can't parse comment on merge from webhook")
 			}
 			i.gitlabWebhookBody = e
+			return nil
 		}
 
 	//
@@ -82,6 +84,7 @@ func (i *Injeolmi) getGitlabWebhookBodyAndValidate(body string) error {
 			return errors.Wrap(err, "can't parse pipeline event from webhook")
 		}
 		i.gitlabWebhookBody = e
+		return nil
 
 	//
 	// parse job event
@@ -93,13 +96,18 @@ func (i *Injeolmi) getGitlabWebhookBodyAndValidate(body string) error {
 			return errors.Wrap(err, "can't parse job event from webhook")
 		}
 		i.gitlabWebhookBody = e
+		return nil
 	}
 
-	return errors.New("can't parse event from webhook")
+	return errors.New(fmt.Sprintf("can't parse %s event from webhook", i.gitlabWebhookEvent))
 }
 
 func (i *Injeolmi) parseUserActionFromMRComment(comment string) error {
 	commentSlice := strings.Split(comment, " ")
+
+	if responseKeyword == commentSlice[0] {
+		return nil
+	}
 
 	if triggerKeyword != commentSlice[0] {
 		return errors.New("Comments must start with trigger keyword")
