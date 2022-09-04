@@ -20,6 +20,15 @@ type Injeolmi struct {
 	awsClientConfig     *aws.Config
 }
 
+type DynamodbTableFields struct {
+	CommentID        int
+	PipelineID       int
+	MergeRequestsIID int
+	ActionType       string
+	ActionOptions    string
+	CommentString    string
+}
+
 const (
 	webhookSecretHeader = "X-Gitlab-Token"
 	webhookEventHeader  = "X-Gitlab-Event"
@@ -27,20 +36,18 @@ const (
 	responseKeyword     = "[Injeolmi]"
 	webhookSecretEnvKey = "GITLAB_WEBHOOK_SECRET"
 	gitlabTokenEnvKey   = "GITLAB_TOKEN"
-	dynamodbTableName   = "ingeolmi-dynamodb"
 )
 
 const (
 	webhookNoteEvent     = "Note Hook"
 	webhookPipelineEvent = "Pipeline Hook"
-	webhookJobEvent      = "Job Hook"
 )
 
 func Run(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	injeolmi := Injeolmi{}
 
 	// Get gitlab webhook event from header and validate
-	allowEventTypeList := []string{webhookNoteEvent, webhookPipelineEvent, webhookJobEvent}
+	allowEventTypeList := []string{webhookNoteEvent, webhookPipelineEvent}
 	if err := injeolmi.getGitlabWebookEventAndValidate(req.Headers, allowEventTypeList); err != nil {
 		return generateReturn(err.Error(), 400)
 	}
@@ -69,6 +76,8 @@ func Run(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, err
 	if err := injeolmi.getGitlabWebhookBodyAndValidate(req.Body); err != nil {
 		return generateReturn(err.Error(), 400)
 	}
+
+	log.Printf("gitlabWebhookEvent : %s", injeolmi.gitlabWebhookEvent)
 
 	// Handle webhook
 	if err := injeolmi.handleWebhook(); err != nil {

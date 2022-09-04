@@ -1,11 +1,11 @@
 resource "aws_dynamodb_table" "this" {
   name = join(local.delimiter, [local.name_tag_prefix, "dynamodb"])
   billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "CommentID"
+  hash_key       = "PipelineID"
   table_class    = "STANDARD"
-
+  
   attribute {
-    name = "CommentID"
+    name = "PipelineID"
     type = "N"
   }
 

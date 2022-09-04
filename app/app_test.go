@@ -146,3 +146,7 @@ func TestRun_updateComment(t *testing.T) {
 	assert.Equal(t, testSet.expect.Body, response.Body)
 	assert.Equal(t, testSet.expect.StatusCode, response.StatusCode)
 }
+
+func Test_GetItemToAWSDynamodb(t *testing.T) {
+
+}

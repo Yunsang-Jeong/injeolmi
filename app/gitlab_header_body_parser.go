@@ -25,7 +25,7 @@ func (i *Injeolmi) getGitlabWebookEventAndValidate(headers map[string]string, al
 		}
 	}
 
-	return errors.New("fail to validate gitlab webhook type")
+	return errors.New(fmt.Sprintf("%s is not supported webhook type", i.gitlabWebhookEvent))
 }
 
 func (i *Injeolmi) getGitlabWebookSecretAndValidate(headers map[string]string) error {
@@ -52,6 +52,7 @@ func (i *Injeolmi) getGitlabWebookSecretAndValidate(headers map[string]string) e
 
 func (i *Injeolmi) getGitlabWebhookBodyAndValidate(body string) error {
 	switch i.gitlabWebhookEvent {
+
 	//
 	// parse note event
 	//
@@ -82,18 +83,6 @@ func (i *Injeolmi) getGitlabWebhookBodyAndValidate(body string) error {
 		var e gitlab.PipelineEvent
 		if err := json.Unmarshal([]byte(body), &e); err != nil {
 			return errors.Wrap(err, "can't parse pipeline event from webhook")
-		}
-		i.gitlabWebhookBody = e
-		return nil
-
-	//
-	// parse job event
-	//
-	case webhookJobEvent:
-
-		var e gitlab.JobEvent
-		if err := json.Unmarshal([]byte(body), &e); err != nil {
-			return errors.Wrap(err, "can't parse job event from webhook")
 		}
 		i.gitlabWebhookBody = e
 		return nil

@@ -6,18 +6,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	errors "github.com/pkg/errors"
 	"github.com/xanzy/go-gitlab"
 )
 
 const (
-	fmtPipelineSuccessString = "[Injeolmi] Success to run [pipeliine](%s/)"
+	fmtPipelineSuccessString = ":zap: **Success to run [pipeliine](%s/) on %s directory**"
 	helpString               = "[Injeolmi] help task is not supported yet!"
 )
 
 func (i *Injeolmi) handleWebhook() error {
 	switch e := i.gitlabWebhookBody.(type) {
+	//
+	// handle merge comment event
+	//
 	case gitlab.MergeCommentEvent:
 		if err := i.parseUserActionFromMRComment(e.ObjectAttributes.Note); err != nil {
 			return err
@@ -38,14 +41,18 @@ func (i *Injeolmi) handleWebhook() error {
 			}
 		}
 
+	//
+	// handle pipeline event
+	//
 	case gitlab.PipelineEvent:
-		if err := i.handlePipelineEvent(e); err != nil {
-			return errors.Wrap(err, "fail to handle webhook in pipelineevent")
+		// status: pending --> running --> success(passed)
+
+		for _, build := range e.Builds {
+			log.Printf("[PipelineEvent] %s/%s is %s", build.Stage, build.Name, build.Status)
 		}
 
-	case gitlab.JobStats:
-		if err := i.handleJobEvent(e); err != nil {
-			return errors.Wrap(err, "fail to handle webhook in jobstats")
+		if err := i.handlePipelineEvent(e); err != nil {
+			return errors.Wrap(err, "fail to handle webhook in pipelineevent")
 		}
 
 	default:
@@ -70,7 +77,7 @@ func (i *Injeolmi) handleStartAction(e gitlab.MergeCommentEvent) error {
 			VariableType: "env_var",
 		},
 	}
-	log.Println(i.userActionOptions[0])
+
 	pipeline, err := i.runBranchPipeline(e.ProjectID, e.MergeRequest.SourceBranch, pipelineVariables)
 	if err != nil {
 		return errors.Wrap(err, "fail to run pipeline")
@@ -79,7 +86,7 @@ func (i *Injeolmi) handleStartAction(e gitlab.MergeCommentEvent) error {
 	//
 	// Write comment on mr
 	//
-	commentString := fmt.Sprintf(fmtPipelineSuccessString, pipeline.WebURL)
+	commentString := fmt.Sprintf(fmtPipelineSuccessString, pipeline.WebURL, strings.Join(i.userActionOptions, ", "))
 	note, err := i.writeComment(e.ProjectID, e.MergeRequest.IID, commentString)
 	if err != nil {
 		return errors.Wrap(err, "fail to write comment")
@@ -88,17 +95,21 @@ func (i *Injeolmi) handleStartAction(e gitlab.MergeCommentEvent) error {
 	//
 	// Save data to AWS DynamoDB
 	//
-	item := dynamodb_table_schema{
-		"ProjectID":        &types.AttributeValueMemberN{Value: strconv.Itoa(e.ProjectID)},
-		"CommentID":        &types.AttributeValueMemberN{Value: strconv.Itoa(note.ID)},
-		"MergeRequestsID":  &types.AttributeValueMemberN{Value: strconv.Itoa(e.MergeRequest.ID)},
-		"MergeRequestsIID": &types.AttributeValueMemberN{Value: strconv.Itoa(e.MergeRequest.IID)},
-		"PipelineID":       &types.AttributeValueMemberN{Value: strconv.Itoa(pipeline.ID)},
-		"ActionType":       &types.AttributeValueMemberS{Value: "start"},
-		"ActionOptions":    &types.AttributeValueMemberS{Value: strings.Join(i.userActionOptions, ", ")},
+	item := DynamodbTableFields{
+		PipelineID:       pipeline.ID,
+		CommentID:        note.ID,
+		MergeRequestsIID: e.MergeRequest.IID,
+		ActionType:       "start",
+		ActionOptions:    strings.Join(i.userActionOptions, ", "),
+		CommentString:    commentString,
 	}
-	if err := i.PutItemToAWSDynamoDB(item); err != nil {
-		return errors.Wrap(err, "fail to put item to AWS DynamoDB")
+	marshaledItem, err := item.marshalDynamodbAttributeValue()
+	if err != nil {
+		return errors.Wrap(err, "fail to marshal item to put in dynamodb")
+	}
+
+	if err := i.PutItemToAWSDynamodb(marshaledItem); err != nil {
+		return errors.Wrap(err, "fail to put item in dynamodb")
 	}
 
 	return nil
@@ -120,30 +131,55 @@ func (i *Injeolmi) handlePipelineEvent(e gitlab.PipelineEvent) error {
 	//
 	// handle PipelineEvent
 	//
-	// pipelineId := body.ObjectAttributes.ID
-	// pipelineVariables := body.ObjectAttributes.Variables
 
-	// dir := ""
-	// for _, variable := range pipelineVariables {
-	// 	if variable.Key == "DIR" {
-	// 		dir = variable.Value
-	// 	}
-	// }
-	return nil
-}
+	item := DynamodbTableFields{
+		PipelineID: e.ObjectAttributes.ID,
+	}
+	marshaledItem, err := item.marshalDynamodbAttributeValue()
+	if err != nil {
+		return errors.Wrap(err, "fail to marshal item to put in dynamodb")
+	}
 
-func (i *Injeolmi) handleJobEvent(e gitlab.JobStats) error {
-	//
-	// handle PipelineEvent
-	//
-	// pipelineId := body.ObjectAttributes.ID
-	// pipelineVariables := body.ObjectAttributes.Variables
+	returnedItem, err := i.GetItemToAWSDynamodb(marshaledItem)
+	if err != nil {
+		return errors.Wrap(err, "fail to get item to AWS DynamoDB")
+	}
 
-	// dir := ""
-	// for _, variable := range pipelineVariables {
-	// 	if variable.Key == "DIR" {
-	// 		dir = variable.Value
-	// 	}
-	// }
+	unmarshaledReturnedItem := make(map[string]string)
+
+	for itemKey, itemValue := range *returnedItem {
+		var v string
+		if err := attributevalue.Unmarshal(itemValue, &v); err != nil {
+			return errors.Wrap(err, "can't parse unmarshal")
+		}
+
+		unmarshaledReturnedItem[itemKey] = v
+	}
+
+	mergeRequestsIIDm, _ := strconv.Atoi(unmarshaledReturnedItem["MergeRequestsIID"])
+	commentID, _ := strconv.Atoi(unmarshaledReturnedItem["CommentID"])
+	commentString := unmarshaledReturnedItem["CommentString"]
+
+	for _, build := range e.Builds {
+		prefix_emoji := ":white_large_square:"
+
+		switch build.Status {
+		case "success":
+			prefix_emoji = ":white_check_mark:"
+		case "running":
+			prefix_emoji = ":runner:"
+		}
+
+		c := fmt.Sprintf("- %s - %s is %s : %s", prefix_emoji, build.Stage, build.Name, build.Status)
+		commentString = fmt.Sprintf("%s\n%s", commentString, c)
+	}
+
+	i.updateComment(
+		e.Project.ID,
+		mergeRequestsIIDm,
+		commentID,
+		commentString,
+	)
+
 	return nil
 }
