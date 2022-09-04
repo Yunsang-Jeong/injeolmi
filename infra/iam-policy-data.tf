@@ -47,3 +47,14 @@ data "aws_iam_policy_document" "cloudwatch_policy" {
     resources = ["*"]
   }
 }
+
+data "aws_iam_policy_document" "dynamodb_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+    ]
+    resources = ["*"]
+  }
+}

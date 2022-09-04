@@ -11,7 +11,7 @@ resource "aws_lambda_function" "this" {
   handler = "main"
 
   # Source code
-  filename         = "../bin/injeolmi.zip"
+  filename         = "../bin/main.zip"
   package_type     = "Zip"
   publish          = true
   source_code_hash = data.archive_file.zip.output_base64sha256
@@ -55,6 +55,13 @@ resource "aws_iam_role_policy" "lambda_cloudwatch" {
   role   = aws_iam_role.lambda_service_role.id
   policy = data.aws_iam_policy_document.cloudwatch_policy.json
 }
+
+resource "aws_iam_role_policy" "lambda_dynamodb" {
+  name   = "dynamodb"
+  role   = aws_iam_role.lambda_service_role.id
+  policy = data.aws_iam_policy_document.dynamodb_policy.json
+}
+
 ################################################################################
 
 resource "null_resource" "makefile" {
@@ -69,7 +76,7 @@ resource "null_resource" "makefile" {
 data "archive_file" "zip" {
   type        = "zip"
   source_dir  = "../bin/"
-  output_path = "../bin/injeolmi.zip"
+  output_path = "../bin/main.zip"
 
   depends_on = [
     null_resource.makefile
