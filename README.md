@@ -4,6 +4,8 @@ Injeolmi is AWS Lambda function for running terraform task through Gitlab CI/CD 
 
 It is very inspired by [atlantis](https://github.com/runatlantis/atlantis). The difference is that the terraform-cli is performed on the Gitlab-Pipeline.
 
+![arch](.assets/poc.png)
+
 ## Service architecture
 
 A series of AWS resources for deploying **injeolmi** can be build with terraform in `/infra`.
