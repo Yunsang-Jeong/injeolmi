@@ -19,8 +19,9 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = {
-      "GITLAB_TOKEN"          = var.gitlab_token
-      "GITLAB_WEBHOOK_SECRET" = var.gitlab_webhook_secret
+      GITLAB_TOKEN          = var.gitlab_token
+      GITLAB_WEBHOOK_SECRET = var.gitlab_webhook_secret
+      DYNAMODB_TABLE_NAME   = join(local.delimiter, [local.name_tag_prefix, "dynamodb"])
     }
   }
 }
