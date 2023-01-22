@@ -6,9 +6,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/Yunsang-Jeong/ingeolmi/internal"
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/awsapi"
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/vcsapi"
+	"github.com/Yunsang-Jeong/injeolmi/internal"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/awsapi"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/vcsapi"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/stretchr/testify/assert"
 )

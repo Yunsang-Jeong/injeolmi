@@ -6,8 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/awsapi"
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/vcsapi"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/awsapi"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/vcsapi"
 	errors "github.com/pkg/errors"
 	"github.com/xanzy/go-gitlab"
 )

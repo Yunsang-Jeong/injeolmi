@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Yunsang-Jeong/ingeolmi/internal"
+	"github.com/Yunsang-Jeong/injeolmi/internal"
 	"github.com/stretchr/testify/assert"
 )
 

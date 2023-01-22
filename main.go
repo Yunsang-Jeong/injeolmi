@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Yunsang-Jeong/ingeolmi/internal"
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/awsapi"
-	"github.com/Yunsang-Jeong/ingeolmi/pkg/vcsapi"
+	"github.com/Yunsang-Jeong/injeolmi/internal"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/awsapi"
+	"github.com/Yunsang-Jeong/injeolmi/pkg/vcsapi"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/aws"
