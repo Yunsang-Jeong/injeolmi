@@ -1,4 +1,4 @@
-module github.com/Yunsang-Jeong/ingeolmi
+module github.com/Yunsang-Jeong/injeolmi
 
 go 1.18
 
